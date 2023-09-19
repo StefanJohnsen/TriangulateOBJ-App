@@ -82,6 +82,7 @@ Open `TriangulateOBJ-App` folder in Visual Studio and build the solution. Rememb
   
 2. Navigate to the `./TriangulateOBJ-App` directory using the Command Prompt and run the following command:
 <br>
+
    ```bash
    TriangulateObj ObjFiles/lego.obj
    ```
