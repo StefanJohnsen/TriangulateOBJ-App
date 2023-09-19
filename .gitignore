@@ -1,0 +1,14 @@
+
+#FalconCoding
+[Bb]uild
+[Oo]ut
+[Pp]re[Bb]uild
+
+*.triangulated.obj
+
+#Visual Studio
+.vs
+*sln
+*.vcx*
+
+

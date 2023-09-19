@@ -1,0 +1,62 @@
+{
+  "version": "0.2.1",
+  "defaults": {},
+  "configurations": [
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "TriangulateOBJ",
+      "name": "TriangulateOBJ x64 Debug",
+      "buildConfiguration": "x64-debug"
+    },
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "TriangulateOBJ",
+      "name": "TriangulateOBJ x64 Release",
+      "buildConfiguration": "x64-release"
+    },
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "TriangulateOBJ",
+      "name": "TriangulateOBJ x86 Debug",
+      "buildConfiguration": "x86-debug"
+    },
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "TriangulateOBJ",
+      "name": "TriangulateOBJ x86 Release",
+      "buildConfiguration": "x86-release"
+    },
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "TriangulateOBJ",
+      "name": "TriangulateOBJ Linux Debug",
+      "buildConfiguration": "linux-debug"
+    },
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "TriangulateOBJ",
+      "name": "TriangulateOBJ Linux Release",
+      "buildConfiguration": "linux-release"
+    },
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "TriangulateOBJ",
+      "name": "TriangulateOBJ macOS Debug",
+      "buildConfiguration": "macos-debug"
+    },
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "TriangulateOBJ",
+      "name": "TriangulateOBJ macOS Release",
+      "buildConfiguration": "macos-release"
+    }
+  ]
+}
