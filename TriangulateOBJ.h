@@ -24,13 +24,13 @@
 
 namespace obj
 {
+	static constexpr float epsilon = 1e-6f;
+
 	struct Count
 	{
 		size_t oldTriangles() const { return triangles.first; }
 
 		size_t newTriangles() const { return triangles.second; }
-
-		size_t sumTriangles() const { return oldTriangles() + newTriangles(); }
 
 		bool empty() const { return Vertices == 0; }
 
@@ -84,10 +84,14 @@ namespace obj
 
 	struct Point
 	{
-		size_t i = 0;
-		float  x = 0.0f;
-		float  y = 0.0f;
-		float  z = 0.0f;
+		Point() : i(0), x(0.0f), y(0.0f), z(0.0f) {}
+
+		Point(const float& x, const float& y, const float& z) : i(0), x(x), y(y), z(z) {}
+
+		size_t i;
+		float  x;
+		float  y;
+		float  z;
 	};
 
 	//-------------------------------------------------------------------------------------------------------
@@ -250,7 +254,7 @@ namespace obj
 		fprintf(target, "#          Triangles : %zu\n", count.oldTriangles());
 		fprintf(target, "\n");
 		fprintf(target, "# Triangles created to replace polygons   : %zu\n", count.newTriangles());
-		fprintf(target, "# Total triangles of existing and created : %zu\n", count.sumTriangles());
+		fprintf(target, "# Total triangles after polygons is triangulated : %zu\n", count.oldTriangles() + count.newTriangles());
 
 		if( !count.empty() ) return true;
 
@@ -279,7 +283,7 @@ namespace obj
 
 		negative = false;
 
-		while( *p == ' ' ) p++;
+		while( *p == ' ' || *p == '\t' ) p++;
 
 		if( *p == '-' )
 		{
@@ -324,7 +328,7 @@ namespace obj
 
 		negative = false;
 
-		while( *p == ' ' ) ++p;
+		while( *p == ' ' || *p == '\t' ) p++;
 
 		if( *p == '-' )
 		{
@@ -433,7 +437,7 @@ namespace obj
 
 		if( p == nullptr ) return nullptr;
 
-		while( std::isspace(*p) ) p++;	
+		while( std::isspace(*p) ) p++;
 
 		e = p;
 
@@ -463,7 +467,7 @@ namespace obj
 		if( !strtof(line, point.z, line) )
 			return false;
 
-		count.Vertices++;
+		point.i = count.Vertices++;
 
 		return true;
 	}
@@ -492,7 +496,7 @@ namespace obj
 
 		return true;
 	}
-
+	
 	char* triangulate(char* line, const std::vector<int>&, const std::vector<Point>&, Count&);
 
 	inline char* parse(char* line, std::vector<Point>& vertex, Count& count)
@@ -525,7 +529,7 @@ namespace obj
 		return line;
 	}
 
-	std::vector<std::vector<Point>> triangulate(const std::vector<Point>&);
+	std::vector<std::vector<Point>> triangulate(std::vector<Point>&);
 
 	inline char* triangulate(char* line, const std::vector<int>& indices, const std::vector<Point>& vertex, Count& count)
 	{
@@ -565,6 +569,8 @@ namespace obj
 
 		const std::vector<std::vector<Point>> triangles = triangulate(polygon);
 
+		if( triangles.empty() ) return head;
+
 		line = head;
 
 		for( const auto& triangle : triangles )
@@ -592,23 +598,329 @@ namespace obj
 			count.triangles.second++;
 		}
 
-		line--;
-
-		*line = '\0';
+		*(--line) = '\0';
 
 		return head;
 	}
 
-	inline std::vector<std::vector<Point>> triangulate(const std::vector<Point>& polygon)
+	//-------------------------------------------------------------------------------------------------------
+
+	enum class TurnDirection
+	{
+		Right  = 1,
+		Left   = -1,
+		NoTurn = 0
+	};
+
+	inline Point operator-(const Point& u, const Point& v)
+	{
+		return {u.x - v.x , u.y - v.y , u.z - v.z};
+	}
+
+	inline Point operator/(const Point& u, const float div)
+	{
+		if( div == 0.0f ) return {0.0f , 0.0f , 0.0f};
+
+		return {u.x / div , u.y / div , u.z / div};
+	}
+
+	inline bool operator==(const Point& u, const Point& v)
+	{
+		if( fabs(u.x - v.x) > epsilon ) return false;
+		if( fabs(u.y - v.y) > epsilon ) return false;
+		if( fabs(u.z - v.z) > epsilon ) return false;
+
+		return true;
+	}
+
+	inline Point cross(const Point& u, const Point& v)
+	{
+		return {u.y * v.z - u.z * v.y , u.z * v.x - u.x * v.z , u.x * v.y - u.y * v.x};
+	}
+
+	inline float dot(const Point& u, const Point& v)
+	{
+		return u.x * v.x + u.y * v.y + u.z * v.z;
+	}
+
+	inline float length(const Point& u)
+	{
+		return std::sqrt(u.x * u.x + u.y * u.y + u.z * u.z);
+	}
+
+	inline Point normalize(const Point& point)
+	{
+		return point / obj::length(point);
+	}
+
+	inline TurnDirection turn(const Point& p, const Point& u, const Point& n, const Point& q)
+	{
+		const auto dot = obj::dot(cross(q - p, u), n);
+
+		return dot > 0.0f ? TurnDirection::Right : (dot < 0.0f ? TurnDirection::Left : TurnDirection::NoTurn);
+	}
+
+	inline float triangleAreaSquared(const Point& a, const Point& b, const Point& c)
+	{
+		const auto cross = obj::cross(b - a, c - a);
+
+		return (cross.x * cross.x + cross.y * cross.y + cross.z * cross.z) / 4.0f;
+	}
+
+	//-------------------------------------------------------------------------------------------------------
+
+	inline Point normal(const std::vector<Point>& polygon) //Newell's method
+	{
+		Point normal;
+
+		const auto n = polygon.size();
+
+		if( n < 3 ) return normal;
+
+		for( size_t index = 0; index < n; index++ )
+		{
+			const Point& item = polygon[index % n];
+			const Point& next = polygon[(index + 1) % n];
+
+			normal.x += (next.y - item.y) * (next.z + item.z);
+			normal.y += (next.z - item.z) * (next.x + item.x);
+			normal.z += (next.x - item.x) * (next.y + item.y);
+		}
+
+		return normalize(normal);
+	}
+
+	inline bool convex(const std::vector<Point>& polygon, const Point& normal)
+	{
+		const auto n = polygon.size();
+
+		if( n < 3 ) return false;
+
+		if( n == 3 ) return true;
+
+		auto polygonTurn = TurnDirection::NoTurn;
+
+		for( size_t index = 0; index < n; index++ )
+		{
+			const auto& prev = polygon[(index - 1 + n) % n];
+			const auto& item = polygon[index % n];
+			const auto& next = polygon[(index + 1) % n];
+
+			const auto u = normalize(item - prev);
+
+			const auto itemTurn = turn(prev, u, normal, next);
+
+			if( itemTurn == TurnDirection::NoTurn )
+				continue;
+
+			if( polygonTurn == TurnDirection::NoTurn )
+				polygonTurn = itemTurn;
+
+			if( polygonTurn != itemTurn )
+				return false;
+		}
+
+		return true;
+	}
+
+	inline bool clockwiseOriented(const std::vector<Point>& polygon, const Point& normal)
+	{
+		const auto n = polygon.size();
+
+		if( n < 3 ) return false;
+
+		double orientationSum(0.0);
+
+		for( size_t index = 0; index < n; index++ )
+		{
+			const auto& prev = polygon[(index - 1 + n) % n];
+			const auto& item = polygon[index % n];
+			const auto& next = polygon[(index + 1) % n];
+
+			const auto& edge        = item - prev;
+			const auto& toNextPoint = next - item;
+
+			const auto cross = obj::cross(edge, toNextPoint);
+
+			orientationSum += dot(cross, normal);
+		}
+
+		return orientationSum < 0.0;
+	}
+
+	inline void makeClockwiseOrientation(std::vector<Point>& polygon, const Point& normal)
+	{
+		if( polygon.size() < 3 ) return;
+
+		if( !clockwiseOriented(polygon, normal) )
+			polygon = {polygon.rbegin() , polygon.rend()};
+	}
+
+	inline void getBarycentricTriangleCoordinates(const Point& a, const Point& b, const Point& c, const Point& p, float& alpha, float& beta, float& gamma)
+	{
+		alpha = beta = gamma = -2 * epsilon;
+
+		const auto v0 = c - a;
+		const auto v1 = b - a;
+		const auto v2 = p - a;
+
+		const auto dot00 = dot(v0, v0);
+		const auto dot01 = dot(v0, v1);
+		const auto dot02 = dot(v0, v2);
+		const auto dot11 = dot(v1, v1);
+		const auto dot12 = dot(v1, v2);
+
+		const float denom = dot00 * dot11 - dot01 * dot01;
+
+		if( fabs(denom) < epsilon ) return;
+				
+		alpha = (dot11 * dot02 - dot01 * dot12) / denom;
+		beta  = (dot00 * dot12 - dot01 * dot02) / denom;
+		gamma = 1.0f - alpha - beta;
+	}
+
+	inline bool pointInsideOrEdgeTriangle(const Point& a, const Point& b, const Point& c, const Point& p)
+	{
+		float alpha, beta, gamma;
+
+		getBarycentricTriangleCoordinates(a, b, c, p, alpha, beta, gamma);
+
+		return (alpha >= -epsilon) && (beta >= -epsilon) && (gamma >= -epsilon);
+	}
+
+	inline void removeConsecutiveEqualPoints(std::vector<Point>& polygon)
+	{
+		const auto unique = std::unique(polygon.begin(), polygon.end(), [](const Point& a, const Point& b) { return a == b; });
+
+		polygon.erase(unique, polygon.end());
+	}
+
+	//-------------------------------------------------------------------------------------------------------
+
+	inline bool isEar(const int index, const std::vector<Point>& polygon, const Point& normal)
+	{
+		const auto n = polygon.size();
+
+		if( n < 3 ) return false;
+
+		if( n == 3 ) return true;
+
+		const auto prevIndex = (index - 1 + n) % n;
+		const auto itemIndex = index % n;
+		const auto nextIndex = (index + 1) % n;
+
+		const Point& prev = polygon[prevIndex];
+		const Point& item = polygon[itemIndex];
+		const Point& next = polygon[nextIndex];
+
+		const auto u = normalize(item - prev);
+
+		if( turn(prev, u, normal, next) != TurnDirection::Right )
+			return false;
+
+		for( size_t i = 0; i < polygon.size(); i++ )
+		{
+			if( i == prevIndex ) continue;
+			if( i == itemIndex ) continue;
+			if( i == nextIndex ) continue;
+
+			if( pointInsideOrEdgeTriangle(prev, item, next, polygon[i]) )
+				return false;
+		}
+
+		return true;
+	}
+
+	inline int getBiggestEar(const std::vector<Point>& polygon, const Point& normal)
+	{
+		const auto n = static_cast<int>(polygon.size());
+
+		if( n == 3 ) return 0;
+
+		if( n == 0 ) return -1;
+
+		int maxIndex(-1);
+
+		double maxArea(DBL_MIN);
+
+		for( int index = 0; index < n; index++ )
+		{
+			if( isEar(index, polygon, normal) )
+			{
+				const Point& prev = polygon[(index - 1 + n) % n];
+				const Point& item = polygon[index % n];
+				const Point& next = polygon[(index + 1) % n];
+
+				const auto area = triangleAreaSquared(prev, item, next);
+
+				if( area > maxArea )
+				{
+					maxIndex = index;
+
+					maxArea = area;
+				}
+			}
+		}
+
+		return maxIndex;
+	}
+
+	//-------------------------------------------------------------------------------------------------------
+
+	inline std::vector<std::vector<Point>> fanTriangulation(std::vector<Point>& polygon)
 	{
 		if( polygon.size() < 3 ) return {};
 
 		std::vector<std::vector<Point>> triangles;
 
-		for( size_t i = 1; i < polygon.size() - 1; ++i )
-			triangles.push_back({polygon[0] , polygon[i] , polygon[i + 1]});
+		for( size_t index = 1; index < polygon.size() - 1; ++index )
+			triangles.push_back({polygon[0] , polygon[index] , polygon[index + 1]});
+
+		polygon.clear();
 
 		return triangles;
+	}
+
+	inline std::vector<std::vector<Point>> cutTriangulation(std::vector<Point>& polygon, const Point& normal)
+	{
+		removeConsecutiveEqualPoints(polygon);
+
+		std::vector<std::vector<Point>> triangles;
+
+		const auto n = polygon.size();
+
+		if( n < 3 ) return triangles;
+
+		makeClockwiseOrientation(polygon, normal);
+
+		while( !polygon.empty() )
+		{
+			const int index = getBiggestEar(polygon, normal);
+
+			if( index == -1 )
+				return triangles;
+
+			const Point& prev = polygon[(index - 1 + n) % n];
+			const Point& item = polygon[index % n];
+			const Point& next = polygon[(index + 1) % n];
+
+			triangles.push_back({prev , item , next});
+
+			polygon.erase(polygon.begin() + index);
+
+			if( polygon.size() < 3 ) break;
+		}
+
+		return polygon.size() == 2 ? triangles : std::vector<std::vector<Point>>();
+	}
+
+	inline std::vector<std::vector<Point>> triangulate(std::vector<Point>& polygon)
+	{
+		removeConsecutiveEqualPoints(polygon);
+
+		const auto normal = obj::normal(polygon);
+
+		return convex(polygon, normal) ? fanTriangulation(polygon) : cutTriangulation(polygon, normal);
 	}
 }
 

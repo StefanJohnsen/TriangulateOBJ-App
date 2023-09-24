@@ -19,9 +19,7 @@
 
 #include <chrono>
 #include <sstream>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #define indent std::string(5, ' ')
 
@@ -49,7 +47,7 @@ inline void report(const obj::Triangulate& obj)
 	std::cout << indent << "Existing triangles    : " << obj.metrics().oldTriangles() << std::endl;
 	std::cout << indent << "Created triangles     : " << obj.metrics().newTriangles() << "  " << file_extend() << std::endl;
 	std::cout << indent << std::string(50, '-') << std::endl;
-	std::cout << indent << "Total triangles       : " << obj.metrics().sumTriangles() << std::endl;
+	std::cout << indent << "Total triangles       : " << obj.metrics().oldTriangles() + obj.metrics().newTriangles() << std::endl;
 	std::cout << indent << "Total vertices        : " << obj.metrics().Vertices << std::endl;
 	std::cout << indent << std::string(50, '-') << std::endl;
 	std::cout << indent << "Execution time        : " << stopwatch() << std::endl;
