@@ -21,6 +21,7 @@
 #include <cmath>
 #include <vector>
 #include <iostream>
+#include <stdexcept>
 
 namespace obj
 {
@@ -28,15 +29,11 @@ namespace obj
 
 	struct Count
 	{
-		size_t oldTriangles() const { return triangles.first; }
-
-		size_t newTriangles() const { return triangles.second; }
-
 		bool empty() const { return Vertices == 0; }
 
 		size_t Vertices = 0;
-		size_t polygons = 0;
 
+		std::pair<size_t, size_t> polygons;
 		std::pair<size_t, size_t> triangles;
 	};
 
@@ -92,6 +89,13 @@ namespace obj
 		float  x;
 		float  y;
 		float  z;
+	};
+
+	struct Triangle
+	{
+		Triangle(const Point& p0, const Point& p1, const Point& p2) : p0(p0), p1(p1), p2(p2) {}
+
+		Point p0, p1, p2;
 	};
 
 	//-------------------------------------------------------------------------------------------------------
@@ -172,7 +176,7 @@ namespace obj
 			const char* line = parse(buff, vertex, count);
 
 			if( line == nullptr )
-				return error();
+				continue;
 
 			if( fputs(line, target) == EOF )
 				return error();
@@ -248,13 +252,18 @@ namespace obj
 		fprintf(target, "# Triangulated OBJ File\n");
 		fprintf(target, "# File Triangulated by FalconCoding (https://github.com/StefanJohnsen)\n");
 		fprintf(target, "\n");
-		fprintf(target, "# Original File      : %s\n", filename(source_obj).c_str());
+		fprintf(target, "# Original file name : %s\n", filename(source_obj).c_str());
 		fprintf(target, "#          Vertices  : %zu\n", count.Vertices);
-		fprintf(target, "#          Polygons  : %zu\n", count.polygons);
-		fprintf(target, "#          Triangles : %zu\n", count.oldTriangles());
+		fprintf(target, "#          Polygons  : %zu\n", count.polygons.first);
+		fprintf(target, "#          Triangles : %zu\n", count.triangles.first);
 		fprintf(target, "\n");
-		fprintf(target, "# Triangles created to replace polygons   : %zu\n", count.newTriangles());
-		fprintf(target, "# Total triangles after polygons is triangulated : %zu\n", count.oldTriangles() + count.newTriangles());
+
+		fprintf(target, "# This triangulated file\n");
+		fprintf(target, "#          Polygons  : %zu    %zu\n", count.polygons.first, count.polygons.second - count.polygons.first);
+		fprintf(target, "#          Triangles : %zu    %zu\n", count.triangles.first, count.triangles.second - count.triangles.first);
+		fprintf(target, "\n");
+
+		fprintf(target, "# Total triangles after triangulations : %zu\n", count.triangles.first + count.triangles.second);
 
 		if( !count.empty() ) return true;
 
@@ -491,13 +500,10 @@ namespace obj
 				line++;
 		}
 
-		if( indices.size() < 4 )
-			count.triangles.first++;
-
 		return true;
 	}
-	
-	char* triangulate(char* line, const std::vector<int>&, const std::vector<Point>&, Count&);
+
+	char* triangulate(char* line, std::vector<int>&, const std::vector<Point>&, Count&);
 
 	inline char* parse(char* line, std::vector<Point>& vertex, Count& count)
 	{
@@ -509,9 +515,6 @@ namespace obj
 
 			if( !parse(line + 2, indices, vertex.size(), count) )
 				return nullptr;
-
-			if( indices.size() < 4 )
-				return line;
 
 			return triangulate(line, indices, vertex, count);
 		}
@@ -529,17 +532,28 @@ namespace obj
 		return line;
 	}
 
-	std::vector<std::vector<Point>> triangulate(std::vector<Point>&);
+	template <typename T>
+	void removeConsecutiveEqualItems(std::vector<T>&);
 
-	inline char* triangulate(char* line, const std::vector<int>& indices, const std::vector<Point>& vertex, Count& count)
+	std::vector<Triangle> triangulate(std::vector<Point>&);
+
+	inline char* triangulate(char* line, std::vector<int>& indices, const std::vector<Point>& vertex, Count& count)
 	{
-		char* head = line;
-
-		if( line == nullptr )
+		if( line == nullptr || *line != 'f' )
 			return nullptr;
 
-		if( *line != 'f' )
+		const auto initialCountOfIndices = indices.size();
+
+		if( initialCountOfIndices < 3 )
 			return nullptr;
+
+		if( initialCountOfIndices == 3 )
+			count.triangles.first++;
+
+		if( initialCountOfIndices > 3 )
+			count.polygons.first++;
+
+		char* lineStart = line;
 
 		line++;
 
@@ -562,36 +576,38 @@ namespace obj
 			polygon.back().i = polygon.size() - 1;
 		}
 
-		if( indices.size() != polygon.size() )
+		removeConsecutiveEqualItems<int>(indices);
+
+		if( indices.size() < 3 )
+		{
+			if( initialCountOfIndices > 3 )
+				count.polygons.second++; //Solved, but degenerated
+
 			return nullptr;
+		}
+				
+		const std::vector<Triangle> triangles = triangulate(polygon);
 
-		count.polygons++;
+		if( triangles.empty() )
+			return lineStart; //Not triangulated (print original text)
 
-		const std::vector<std::vector<Point>> triangles = triangulate(polygon);
+		if( initialCountOfIndices > 3 )
+			count.polygons.second++; //Solved
 
-		if( triangles.empty() ) return head;
-
-		line = head;
+		line = lineStart;
 
 		for( const auto& triangle : triangles )
 		{
-			if( triangle.size() != 3 )
-				return nullptr;
-
-			const auto& p0 = triangle[0];
-			const auto& p1 = triangle[1];
-			const auto& p2 = triangle[2];
-
 			*line++ = 'f';
 
 			*line++ = ' ';
-			for( const auto& c : vertexText[p0.i] ) *line++ = c;
+			for( const auto& c : vertexText[triangle.p0.i] ) *line++ = c;
 
 			*line++ = ' ';
-			for( const auto& c : vertexText[p1.i] ) *line++ = c;
+			for( const auto& c : vertexText[triangle.p1.i] ) *line++ = c;
 
 			*line++ = ' ';
-			for( const auto& c : vertexText[p2.i] ) *line++ = c;
+			for( const auto& c : vertexText[triangle.p2.i] ) *line++ = c;
 
 			*line++ = '\n';
 
@@ -600,7 +616,7 @@ namespace obj
 
 		*(--line) = '\0';
 
-		return head;
+		return lineStart;
 	}
 
 	//-------------------------------------------------------------------------------------------------------
@@ -788,11 +804,15 @@ namespace obj
 		return (alpha >= -epsilon) && (beta >= -epsilon) && (gamma >= -epsilon);
 	}
 
-	inline void removeConsecutiveEqualPoints(std::vector<Point>& polygon)
+	template <typename T>
+	void removeConsecutiveEqualItems(std::vector<T>& list)
 	{
-		const auto unique = std::unique(polygon.begin(), polygon.end(), [](const Point& a, const Point& b) { return a == b; });
+		const auto unique = std::unique(list.begin(), list.end(), [](const T& a, const T& b) { return a == b; });
 
-		polygon.erase(unique, polygon.end());
+		list.erase(unique, list.end());
+
+		while( !list.empty() && list.front() == list.back() )
+			list.erase(list.begin());
 	}
 
 	//-------------------------------------------------------------------------------------------------------
@@ -867,56 +887,60 @@ namespace obj
 
 	//-------------------------------------------------------------------------------------------------------
 
-	inline std::vector<std::vector<Point>> fanTriangulation(std::vector<Point>& polygon)
+	inline std::vector<Triangle> fanTriangulation(std::vector<Point>& polygon)
 	{
-		if( polygon.size() < 3 ) return {};
-
-		std::vector<std::vector<Point>> triangles;
+		std::vector<Triangle> triangles;
 
 		for( size_t index = 1; index < polygon.size() - 1; ++index )
-			triangles.push_back({polygon[0] , polygon[index] , polygon[index + 1]});
-
-		polygon.clear();
+			triangles.emplace_back(polygon[0], polygon[index], polygon[index + 1]);
 
 		return triangles;
 	}
 
-	inline std::vector<std::vector<Point>> cutTriangulation(std::vector<Point>& polygon, const Point& normal)
+	inline std::vector<Triangle> cutTriangulation(std::vector<Point>& polygon, const Point& normal)
 	{
-		removeConsecutiveEqualPoints(polygon);
-
-		std::vector<std::vector<Point>> triangles;
-
-		const auto n = polygon.size();
-
-		if( n < 3 ) return triangles;
+		std::vector<Triangle> triangles;
 
 		makeClockwiseOrientation(polygon, normal);
+
+		auto n = polygon.size();
 
 		while( !polygon.empty() )
 		{
 			const int index = getBiggestEar(polygon, normal);
 
-			if( index == -1 )
-				return triangles;
+			if( index == -1 ) return {};
+
+			n = polygon.size();
 
 			const Point& prev = polygon[(index - 1 + n) % n];
 			const Point& item = polygon[index % n];
 			const Point& next = polygon[(index + 1) % n];
 
-			triangles.push_back({prev , item , next});
+			triangles.emplace_back(prev, item, next);
 
 			polygon.erase(polygon.begin() + index);
 
 			if( polygon.size() < 3 ) break;
 		}
 
-		return polygon.size() == 2 ? triangles : std::vector<std::vector<Point>>();
+		return polygon.size() == 2 ? triangles : std::vector<Triangle>();
 	}
 
-	inline std::vector<std::vector<Point>> triangulate(std::vector<Point>& polygon)
+	inline std::vector<Triangle> triangulate(std::vector<Point>& polygon)
 	{
-		removeConsecutiveEqualPoints(polygon);
+		removeConsecutiveEqualItems<Point>(polygon);
+
+		if( polygon.size() < 3 ) return {};
+
+		if( polygon.size() == 3 )
+		{
+			std::vector<Triangle> triangle;
+
+			triangle.emplace_back(polygon[0], polygon[1], polygon[2]);
+
+			return triangle;
+		}
 
 		const auto normal = obj::normal(polygon);
 

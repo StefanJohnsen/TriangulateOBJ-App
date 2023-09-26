@@ -29,29 +29,44 @@ static std::chrono::time_point<Clock> init;
 
 std::string stopwatch();
 
-std::string file_size();
+std::string file_size_info();
 
-std::string file_extend();
+std::string triangle_size_info(const obj::Count&);
 
 inline void report(const obj::Triangulate& obj)
 {
+	constexpr int n(60);
+
+	const auto& count = obj.metrics();
+
 	if( obj.metrics().empty() ) return;
 
 	std::cout << indent << std::endl << std::endl;
-	std::cout << indent << std::string(50, '-') << std::endl;
-	std::cout << indent << target.filename().string() << " " << file_size() << std::endl;
-	std::cout << indent << std::string(50, '-') << std::endl;
-	std::cout << indent << "Face metrics" << std::endl;
-	std::cout << indent << std::string(50, '-') << std::endl;
-	std::cout << indent << "Polygons triangulated : " << obj.metrics().polygons << std::endl;
-	std::cout << indent << "Existing triangles    : " << obj.metrics().oldTriangles() << std::endl;
-	std::cout << indent << "Created triangles     : " << obj.metrics().newTriangles() << "  " << file_extend() << std::endl;
-	std::cout << indent << std::string(50, '-') << std::endl;
-	std::cout << indent << "Total triangles       : " << obj.metrics().oldTriangles() + obj.metrics().newTriangles() << std::endl;
-	std::cout << indent << "Total vertices        : " << obj.metrics().Vertices << std::endl;
-	std::cout << indent << std::string(50, '-') << std::endl;
+	std::cout << indent << std::string(n, '-') << std::endl;
+	std::cout << indent << target.filename().string() << " " << file_size_info() << std::endl;
+	std::cout << indent << std::string(n, '-') << std::endl;
+	std::cout << indent << "Vertices              : " << count.Vertices << std::endl;
+	std::cout << indent << "Triangles             : " << count.triangles.first << std::endl;
+	std::cout << indent << "Polygons              : " << count.polygons.first << std::endl;
+	std::cout << indent << std::string(n, '-') << std::endl;
+	std::cout << indent << "Triangulated polygons : " << count.polygons.second << std::endl;
+	std::cout << indent << std::string(n, '-') << std::endl;
+	std::cout << indent << "Total triangles       : " << triangle_size_info(count) << std::endl;
+	std::cout << indent << std::string(n, '-') << std::endl;
 	std::cout << indent << "Execution time        : " << stopwatch() << std::endl;
-	std::cout << indent << std::string(50, '-') << std::endl << std::endl;
+	std::cout << indent << std::string(n, '-') << std::endl << std::endl;
+}
+
+inline std::string triangle_size_info(const obj::Count& count)
+{
+	std::string text;
+
+	text += std::to_string(count.triangles.first + count.triangles.second);
+	text += "    (+";
+	text += std::to_string(count.triangles.second);
+	text += ")";
+
+	return text;
 }
 
 inline std::string stopwatch(const std::chrono::time_point<Clock>& time, const std::chrono::time_point<Clock>& stop)
@@ -132,6 +147,11 @@ inline std::string file_extend()
 		return "+" + byte_text(byteTarget - byteSource);
 
 	return "-" + byte_text(byteSource - byteTarget);
+}
+
+inline std::string file_size_info()
+{
+	return file_size() + "    (" + file_extend() + ")";
 }
 
 inline std::string byte_text(const size_t& byte)
