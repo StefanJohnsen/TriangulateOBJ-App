@@ -29,9 +29,9 @@ namespace obj
 
 	struct Count
 	{
-		bool empty() const { return Vertices == 0; }
+		bool empty() const { return vertices == 0; }
 
-		size_t Vertices = 0;
+		size_t vertices = 0;
 
 		std::pair<size_t, size_t> polygons;
 		std::pair<size_t, size_t> triangles;
@@ -120,9 +120,9 @@ namespace obj
 	{
 		close();
 
-		this->source = fopen(source_obj.c_str(), "rb");
+		source = fopen(source_obj.c_str(), "rb");
 
-		if( this->source == nullptr )
+		if( source == nullptr )
 		{
 			std::cout << "Impossible to open obj file for read!" << std::endl;
 
@@ -131,9 +131,9 @@ namespace obj
 
 		if( !can_triangulate() ) return error();
 
-		this->target = fopen(target_obj.c_str(), "w");
+		target = fopen(target_obj.c_str(), "w");
 
-		if( this->target == nullptr )
+		if( target == nullptr )
 		{
 			std::cout << "Impossible to open obj file for write!" << std::endl;
 
@@ -165,7 +165,7 @@ namespace obj
 
 	inline bool Triangulate::triangulate()
 	{
-		constexpr int BUFFER_CHAR = 10'000;
+		constexpr int BUFFER_CHAR = 100'000;
 
 		char buff[BUFFER_CHAR] = {0};
 
@@ -192,7 +192,7 @@ namespace obj
 	{
 		Count temp;
 
-		constexpr int BUFFER_CHAR = 10'000;
+		constexpr int BUFFER_CHAR = 100'000;
 
 		char buff[BUFFER_CHAR] = {0};
 
@@ -243,39 +243,6 @@ namespace obj
 		std::string buffer = std::string(count * length, ' ');
 
 		return buffer;
-	}
-
-	inline bool Triangulate::write_header(const std::string& source_obj)
-	{
-		if( fseek(target, 0, SEEK_SET) != 0 ) return error();
-
-		fprintf(target, "# Triangulated OBJ File\n");
-		fprintf(target, "# File Triangulated by FalconCoding (https://github.com/StefanJohnsen)\n");
-		fprintf(target, "\n");
-		fprintf(target, "# Original file name : %s\n", filename(source_obj).c_str());
-		fprintf(target, "#          Vertices  : %zu\n", count.Vertices);
-		fprintf(target, "#          Polygons  : %zu\n", count.polygons.first);
-		fprintf(target, "#          Triangles : %zu\n", count.triangles.first);
-		fprintf(target, "\n");
-
-		fprintf(target, "# This triangulated file\n");
-		fprintf(target, "#          Polygons  : %zu    %zu\n", count.polygons.first, count.polygons.second - count.polygons.first);
-		fprintf(target, "#          Triangles : %zu    %zu\n", count.triangles.first, count.triangles.second - count.triangles.first);
-		fprintf(target, "\n");
-
-		fprintf(target, "# Total triangles after triangulations : %zu\n", count.triangles.first + count.triangles.second);
-
-		if( !count.empty() ) return true;
-
-		fprintf(target, "%s\n", buffer(5).c_str()); // buffer space for 5 %zu values
-		fprintf(target, "# Please note that any comments regarding the number of triangles and faces below,\n");
-		fprintf(target, "# originating from the original file, will be incorrect for this triangulated file.\n");
-		fprintf(target, "# Please update or remove old metrics information.\n");
-		fprintf(target, "#%s\n", std::string(100, '_').c_str());
-		fprintf(target, "#\n");
-		fprintf(target, "\n");
-
-		return true;
 	}
 
 	//-------------------------------------------------------------------------------------------------------
@@ -476,7 +443,7 @@ namespace obj
 		if( !strtof(line, point.z, line) )
 			return false;
 
-		point.i = count.Vertices++;
+		point.i = count.vertices++;
 
 		return true;
 	}
@@ -581,7 +548,7 @@ namespace obj
 		if( indices.size() < 3 )
 		{
 			if( initialCountOfIndices > 3 )
-				count.polygons.second++; //Solved, but degenerated
+				count.polygons.second++;
 
 			return nullptr;
 		}
@@ -589,10 +556,10 @@ namespace obj
 		const std::vector<Triangle> triangles = triangulate(polygon);
 
 		if( triangles.empty() )
-			return lineStart; //Not triangulated (print original text)
+			return lineStart;
 
 		if( initialCountOfIndices > 3 )
-			count.polygons.second++; //Solved
+			count.polygons.second++;
 
 		line = lineStart;
 
@@ -945,6 +912,41 @@ namespace obj
 		const auto normal = obj::normal(polygon);
 
 		return convex(polygon, normal) ? fanTriangulation(polygon) : cutTriangulation(polygon, normal);
+	}
+
+	//-------------------------------------------------------------------------------------------------------
+
+	inline bool Triangulate::write_header(const std::string& source_obj)
+	{
+		if( fseek(target, 0, SEEK_SET) != 0 ) return error();
+
+		fprintf(target, "# Triangulated OBJ File\n");
+		fprintf(target, "# File Triangulated by FalconCoding (https://github.com/StefanJohnsen)\n");
+		fprintf(target, "\n");
+		fprintf(target, "# Original file name : %s\n", filename(source_obj).c_str());
+		fprintf(target, "#          Vertices  : %zu\n", count.vertices);
+		fprintf(target, "#          Polygons  : %zu\n", count.polygons.first);
+		fprintf(target, "#          Triangles : %zu\n", count.triangles.first);
+		fprintf(target, "\n");
+
+		fprintf(target, "# This triangulated file\n");
+		fprintf(target, "#          Polygons  : %zu    %zu\n", count.polygons.first, count.polygons.second - count.polygons.first);
+		fprintf(target, "#          Triangles : %zu    %zu\n", count.triangles.first, count.triangles.second - count.triangles.first);
+		fprintf(target, "\n");
+
+		fprintf(target, "# Total triangles after triangulations : %zu\n", count.triangles.first + count.triangles.second);
+
+		if( !count.empty() ) return true;
+
+		fprintf(target, "%s\n", buffer(5).c_str());
+		fprintf(target, "# Please note that any comments regarding the number of triangles and faces below,\n");
+		fprintf(target, "# originating from the original file, will be incorrect for this triangulated file.\n");
+		fprintf(target, "# Please update or remove old metrics information.\n");
+		fprintf(target, "#%s\n", std::string(100, '_').c_str());
+		fprintf(target, "#\n");
+		fprintf(target, "\n");
+
+		return true;
 	}
 }
 

@@ -27,9 +27,10 @@
   --------------------------------------------------------------------------------------
 */
 
+#include "div.h"
+
 #include <string>
 #include <iostream>
-#include <algorithm>
 #include <filesystem>
 
 static std::string file_lbl = "triangulated";
@@ -40,13 +41,13 @@ using Path = std::filesystem::path;
 static Path source;
 static Path target;
 
+bool arg();
+
 bool arg1(char* argv[]);
 
 bool arg2(char* argv[]);
 
 bool arg3(char* argv[]);
-
-bool arg();
 
 void launch();
 
@@ -69,8 +70,6 @@ inline bool arg1(char* argv[])
 
 	return false;
 }
-
-std::string ext(const Path&);
 
 inline bool arg2(char* argv[])
 {
@@ -145,13 +144,3 @@ inline bool arg()
 	return false;
 }
 
-inline std::string ext(const Path& path)
-{
-	std::string ext = path.extension().string();
-
-	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
-	if( ext.empty() ) return {};
-
-	return ext.substr(1);
-}
