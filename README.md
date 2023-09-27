@@ -16,6 +16,7 @@ This console application is built upon the functionalities provided by the heade
          ---------------------------------------------------
          Execution time        : 371 milliseconds
          ---------------------------------------------------
+ ```
 
 ### New Release 1.1.0
 In this latest release, we've made significant advancements in our polygon triangulation capabilities. The previous version was primarily reliant on the fan triangulation algorithm, which was efficient for convex polygons but fell short when applied to concave polygons.
