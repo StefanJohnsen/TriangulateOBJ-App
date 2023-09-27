@@ -1,7 +1,7 @@
 # Triangulate obj files  
 A lightweight console application designed to convert all polygons in a Wavefront OBJ file to triangles. The result is written to a new file with minimal modifications from the original. 
 This console application is built upon the functionalities provided by the header-only file found in the [TriangulateOBJ](https://github.com/StefanJohnsen/TriangulateOBJ) repository. It demonstrates the practical applications and integrations of the TriangulateOBJ.h.
-
+<br><br>
 ```bash
          ---------------------------------------------------
          lego.triangulated.obj 13MB    (+3MB)
@@ -18,11 +18,13 @@ This console application is built upon the functionalities provided by the heade
          ---------------------------------------------------
  ```
 
+<br><br>
 ### New Release 1.1.0
 In this latest release, we've made significant advancements in our polygon triangulation capabilities. The previous version was primarily reliant on the fan triangulation algorithm, which was efficient for convex polygons but fell short when applied to concave polygons.
 
 To address this, the new update introduces the integration of the "Ear Cut" algorithm, significantly expanding the tool's versatility. This innovative approach ensures accurate triangulation of both convex and concave polygons, marking a substantial improvement in the algorithm's robustness and application range.
 
+<br><br>
 ### Intended Users
 1. **Game Developers**: Optimized models are key to performance in game development. Triangular polygons are computationally less intensive and are often preferred. With this tool, developers can easily ensure their 3D assets are optimized for real-time rendering.
 2. **CAD Professionals**: Triangular polygons often provide smoother transitions when transitioning from CAD to visualization tools or VR platforms. This tool offers an easy step in the conversion process.
