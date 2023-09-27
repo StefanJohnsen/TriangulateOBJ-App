@@ -1,6 +1,26 @@
-# Triangulate obj files
+# Triangulate obj files  
 A lightweight console application designed to convert all polygons in a Wavefront OBJ file to triangles. The result is written to a new file with minimal modifications from the original. 
 This console application is built upon the functionalities provided by the header-only file found in the [TriangulateOBJ](https://github.com/StefanJohnsen/TriangulateOBJ) repository. It demonstrates the practical applications and integrations of the TriangulateOBJ.h.
+
+```bash
+         ---------------------------------------------------
+         lego.triangulated.obj 13MB    (+3MB)
+         ---------------------------------------------------
+         Vertices              :    101.306
+         ---------------------------------------------------
+         Triangles             :     10.780
+         Polygons              :     97.374
+         ---------------------------------------------------
+         Triangles    (after)  :    213.252     (+202.472)
+         Polygons     (after)  :          0
+         ---------------------------------------------------
+         Execution time        : 371 milliseconds
+         ---------------------------------------------------
+
+### New Release 1.1.0
+In this latest release, we've made significant advancements in our polygon triangulation capabilities. The previous version was primarily reliant on the fan triangulation algorithm, which was efficient for convex polygons but fell short when applied to concave polygons.
+
+To address this, the new update introduces the integration of the "Ear Cut" algorithm, significantly expanding the tool's versatility. This innovative approach ensures accurate triangulation of both convex and concave polygons, marking a substantial improvement in the algorithm's robustness and application range.
 
 ### Intended Users
 1. **Game Developers**: Optimized models are key to performance in game development. Triangular polygons are computationally less intensive and are often preferred. With this tool, developers can easily ensure their 3D assets are optimized for real-time rendering.
@@ -90,22 +110,21 @@ Open `TriangulateOBJ-App` folder in Visual Studio and build the solution. Rememb
 On successful execution, you'll see an output similar to:
 
    ```bash
-   ObjFiles/lego.obj has been triangulated
+   ObjFiles\lego.obj has been triangulated
 
-   --------------------------------------------------
-   lego.triangulated.obj 13MB
-   --------------------------------------------------
-   Face metrics
-   --------------------------------------------------
-   Polygons triangulated : 97374
-   Existing triangles    : 10780
-   Created triangles     : 194748  +3MB
-   --------------------------------------------------
-   Total triangles       : 205528
-   Total vertices        : 101306
-   --------------------------------------------------
-   Execution time        : 310 milliseconds
-   --------------------------------------------------
+   ---------------------------------------------------
+   lego.triangulated.obj 13MB    (+3MB)
+   ---------------------------------------------------
+   Vertices              :    101.306
+   ---------------------------------------------------
+   Triangles             :     10.780
+   Polygons              :     97.374
+   ---------------------------------------------------
+   Triangles    (after)  :    213.252     (+202.472)
+   Polygons     (after)  :          0
+   ---------------------------------------------------
+   Execution time        : 371 milliseconds
+   ---------------------------------------------------
    ```
 This command will triangulate the specified OBJ file and provide a summary of the operation.
 
