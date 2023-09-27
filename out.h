@@ -14,12 +14,15 @@
   license can be found at: https://www.gnu.org/licenses/gpl-3.0.html
 */
 
-#include "cmd.h"
-#include "TriangulateOBJ.h"
-
+#include <string>
 #include <chrono>
 #include <sstream>
-#include <sys/stat.h>
+#include <iostream>
+
+#include "cmd.h"
+#include "div.h"
+
+#include "TriangulateOBJ.h"
 
 #define indent std::string(5, ' ')
 
@@ -29,29 +32,34 @@ static std::chrono::time_point<Clock> init;
 
 std::string stopwatch();
 
-std::string file_size();
-
-std::string file_extend();
+std::string file_size_info();
 
 inline void report(const obj::Triangulate& obj)
 {
+	constexpr int n(60);
+
 	if( obj.metrics().empty() ) return;
 
+	const auto v = obj.metrics().vertices;
+	const auto t = obj.metrics().triangles;
+	const auto p = obj.metrics().polygons;
+
+	coutLocaleGuard localeGuard(std::locale(std::locale(), new thousandsFacet));
+
 	std::cout << indent << std::endl << std::endl;
-	std::cout << indent << std::string(50, '-') << std::endl;
-	std::cout << indent << target.filename().string() << " " << file_size() << std::endl;
-	std::cout << indent << std::string(50, '-') << std::endl;
-	std::cout << indent << "Face metrics" << std::endl;
-	std::cout << indent << std::string(50, '-') << std::endl;
-	std::cout << indent << "Polygons triangulated : " << obj.metrics().polygons << std::endl;
-	std::cout << indent << "Existing triangles    : " << obj.metrics().oldTriangles() << std::endl;
-	std::cout << indent << "Created triangles     : " << obj.metrics().newTriangles() << "  " << file_extend() << std::endl;
-	std::cout << indent << std::string(50, '-') << std::endl;
-	std::cout << indent << "Total triangles       : " << obj.metrics().sumTriangles() << std::endl;
-	std::cout << indent << "Total vertices        : " << obj.metrics().Vertices << std::endl;
-	std::cout << indent << std::string(50, '-') << std::endl;
+	std::cout << indent << std::string(n, '-') << std::endl;
+	std::cout << indent << target.filename().string() << " " << file_size_info() << std::endl;
+	std::cout << indent << std::string(n, '-') << std::endl;
+	std::cout << indent << "Vertices              : " << std::setw(10) << v << std::endl;
+	std::cout << indent << std::string(n, '-') << std::endl;
+	std::cout << indent << "Triangles             : " << std::setw(10) << t.first << std::endl;
+	std::cout << indent << "Polygons              : " << std::setw(10) << p.first << std::endl;
+	std::cout << indent << std::string(n, '-') << std::endl;
+	std::cout << indent << "Triangles    (after)  : " << std::setw(10) << t.first + t.second << "     (+" << t.second << ")" << std::endl;
+	std::cout << indent << "Polygons     (after)  : " << std::setw(10) << p.first - p.second << std::endl;
+	std::cout << indent << std::string(n, '-') << std::endl;
 	std::cout << indent << "Execution time        : " << stopwatch() << std::endl;
-	std::cout << indent << std::string(50, '-') << std::endl << std::endl;
+	std::cout << indent << std::string(n, '-') << std::endl << std::endl;
 }
 
 inline std::string stopwatch(const std::chrono::time_point<Clock>& time, const std::chrono::time_point<Clock>& stop)
@@ -134,6 +142,11 @@ inline std::string file_extend()
 	return "-" + byte_text(byteSource - byteTarget);
 }
 
+inline std::string file_size_info()
+{
+	return file_size() + "    (" + file_extend() + ")";
+}
+
 inline std::string byte_text(const size_t& byte)
 {
 	const char* sizeUnits[] = {" bytes" , "KB" , "MB" , "GB" , "TB"};
@@ -151,3 +164,4 @@ inline std::string byte_text(const size_t& byte)
 	result << std::fixed << std::setprecision(0) << size << sizeUnits[unitIndex];
 	return result.str();
 }
+
