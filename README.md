@@ -60,7 +60,7 @@ Clone the [git](https://git-scm.com/downloads) repo
    ```bash
    premake5 vs2022   # replace 'vs2022' with your version of Visual Studio
    ```
-   Open `build/TriangulateOBJ.sln` file in Visual Studio and build the solution.
+   Open `build\TriangulateOBJ.sln` file in Visual Studio and build the solution.
 
 <br><br>
 # Building in Linux and MacOS
