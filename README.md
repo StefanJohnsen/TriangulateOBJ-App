@@ -101,13 +101,13 @@ Open `TriangulateOBJ-App` folder in Visual Studio and build the solution. Rememb
 <br><br>
 # Running the App from the Command Prompt (Windows)
 
-1. Copy the compiled or pre-compiled `TriangulatedOBJ.exe` to the `./TriangulateOBJ-App` directory.
+1. Copy the compiled or pre-compiled `TriangulatedOBJ.exe` to the `.\TriangulateOBJ-App` directory.
   
-2. Navigate to the `./TriangulateOBJ-App` directory using the Command Prompt and run the following command:
+2. Navigate to the `.\TriangulateOBJ-App` directory using the Command Prompt and run the following command:
 <br>
 
    ```bash
-   TriangulateObj ObjFiles/lego.obj
+   TriangulateObj ObjFiles\lego.obj
    ```
 
 On successful execution, you'll see an output similar to:
