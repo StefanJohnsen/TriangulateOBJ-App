@@ -1,4 +1,4 @@
-# Triangulate obj files ([new release](https://github.com/StefanJohnsen/TriangulateOBJ-App/releases)) 
+# Triangulate obj files
 A lightweight console application designed to convert all polygons in a Wavefront OBJ file to triangles. The result is written to a new file with minimal modifications from the original. 
 This console application is built upon the functionalities provided by the header-only file found in the [TriangulateOBJ](https://github.com/StefanJohnsen/TriangulateOBJ) repository. It demonstrates the practical applications and integrations of the TriangulateOBJ.h.
 <br><br><br>
