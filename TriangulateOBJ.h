@@ -499,8 +499,7 @@ namespace obj
 		return line;
 	}
 
-	template <typename T>
-	void removeConsecutiveEqualItems(std::vector<T>&);
+	void removeConsecutiveEqualItems(std::vector<int>&);
 
 	std::vector<Triangle> triangulate(std::vector<Point>&);
 
@@ -543,7 +542,7 @@ namespace obj
 			polygon.back().i = polygon.size() - 1;
 		}
 
-		removeConsecutiveEqualItems<int>(indices);
+		removeConsecutiveEqualItems(indices);
 
 		if( indices.size() < 3 )
 		{
@@ -771,15 +770,33 @@ namespace obj
 		return (alpha >= -epsilon) && (beta >= -epsilon) && (gamma >= -epsilon);
 	}
 
-	template <typename T>
-	void removeConsecutiveEqualItems(std::vector<T>& list)
+	inline void removeConsecutiveEqualItems(std::vector<int>& list)
 	{
-		const auto unique = std::unique(list.begin(), list.end(), [](const T& a, const T& b) { return a == b; });
+		const auto unique = std::unique(list.begin(), list.end(), [](const int a, const int b) { return a == b; });
 
 		list.erase(unique, list.end());
 
 		while( !list.empty() && list.front() == list.back() )
 			list.erase(list.begin());
+	}
+
+	inline void removeConsecutiveEqualItems(std::vector<Point>& list)
+	{
+		const auto n = list.size();
+
+		const std::vector copy(std::move(list));
+
+		list.clear();
+
+		for( size_t index = 0; index < n; index++ )
+		{
+			const Point& item = copy[index % n];
+			const Point& next = copy[(index + 1) % n];
+
+			if( item.i == next.i ) continue;
+
+			list.emplace_back(item);
+		}
 	}
 
 	//-------------------------------------------------------------------------------------------------------
@@ -896,7 +913,7 @@ namespace obj
 
 	inline std::vector<Triangle> triangulate(std::vector<Point>& polygon)
 	{
-		removeConsecutiveEqualItems<Point>(polygon);
+		removeConsecutiveEqualItems(polygon);
 
 		if( polygon.size() < 3 ) return {};
 
