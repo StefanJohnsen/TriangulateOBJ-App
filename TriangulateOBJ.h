@@ -19,6 +19,7 @@
 
 #include <string>
 #include <cmath>
+#include <map>
 #include <vector>
 #include <iostream>
 #include <stdexcept>
@@ -108,9 +109,9 @@ namespace obj
 
 	bool parse(const char*, Point&, Count&);
 
-	bool parse(const char*, std::vector<int>&, size_t, Count&);
+	char* parse(char* line, std::vector<Point>&, Count&);
 
-	char* parse(char* line, std::vector<Point>& vertex, Count&);
+	bool parse(const char*, std::vector<int>&, const std::vector<Point>&, Count&);
 
 	//-------------------------------------------------------------------------------------------------------
 
@@ -198,6 +199,8 @@ namespace obj
 
 		bool vertex(false), polygon(false);
 
+		const std::vector<Point> _;
+
 		while( fgets(buff, sizeof buff, source) )
 		{
 			const char* line = trim(buff);
@@ -206,7 +209,7 @@ namespace obj
 			{
 				std::vector<int> indices;
 
-				if( !parse(line + 2, indices, 0, temp) )
+				if( !parse(line + 2, indices, _, temp) )
 					indices.clear();
 
 				if( indices.size() > 3 )
@@ -423,7 +426,7 @@ namespace obj
 
 		while( std::isspace(*e) && e != p ) e--;
 
-		if( e != p ) e++;
+		e++;
 
 		*e = '\0';
 
@@ -448,20 +451,25 @@ namespace obj
 		return true;
 	}
 
-	inline bool parse(const char* line, std::vector<int>& indices, const size_t vertexSize, Count& count)
+	inline int listIndex(int index, int listSize)
 	{
-		static int i, v;
+		return index > 0 ? index - 1 : index + listSize;
+	}
 
-		v = static_cast<int>(vertexSize);
+	inline bool parse(const char* line, std::vector<int>& indices, const std::vector<Point>& vertex, Count& count)
+	{
+		static int index, size;
+
+		size = static_cast<int>(vertex.size());
 
 		while( !iseol(*line) )
 		{
-			if( !strtoi(line, i, line) )
+			if( !strtoi(line, index, line) )
 				return false;
 
-			i = i > 0 ? i - 1 : i + v;
+			index = listIndex(index, size);
 
-			indices.emplace_back(i);
+			indices.emplace_back(index);
 
 			while( !isspace(*line) && !iseol(*line) )
 				line++;
@@ -470,7 +478,7 @@ namespace obj
 		return true;
 	}
 
-	char* triangulate(char* line, std::vector<int>&, const std::vector<Point>&, Count&);
+	char* triangulate(char* line, const std::vector<int>&, std::vector<Point>&, Count&);
 
 	inline char* parse(char* line, std::vector<Point>& vertex, Count& count)
 	{
@@ -480,7 +488,7 @@ namespace obj
 		{
 			std::vector<int> indices;
 
-			if( !parse(line + 2, indices, vertex.size(), count) )
+			if( !parse(line + 2, indices, vertex, count) )
 				return nullptr;
 
 			return triangulate(line, indices, vertex, count);
@@ -499,11 +507,9 @@ namespace obj
 		return line;
 	}
 
-	void removeConsecutiveEqualItems(std::vector<int>&);
-
 	std::vector<Triangle> triangulate(std::vector<Point>&);
 
-	inline char* triangulate(char* line, std::vector<int>& indices, const std::vector<Point>& vertex, Count& count)
+	inline char* triangulate(char* line, const std::vector<int>& indices, std::vector<Point>& vertex, Count& count)
 	{
 		if( line == nullptr || *line != 'f' )
 			return nullptr;
@@ -525,40 +531,43 @@ namespace obj
 
 		std::string text;
 
-		std::vector<std::string> vertexText;
-
-		while( strtoword(line, text, line) )
-			vertexText.emplace_back(text);
-
-		std::vector<Point> polygon;
+		std::map<size_t, std::string> index_word;
 
 		const auto size = static_cast<int>(vertex.size());
+
+		while( strtoword(line, text, line) )
+		{
+			int index;
+
+			const char* word = text.c_str();
+
+			if( !strtoi(word, index, word) )
+				return nullptr;
+
+			index = listIndex(index, size);
+
+			if( index_word.count(index) == 0 )
+				index_word[index] = text;
+		}
+
+		if( initialCountOfIndices > 3 )
+			count.polygons.second++;
+
+		std::vector<Point> polygon;
 
 		for( const auto& index : indices )
 		{
 			if( index < size )
 				polygon.emplace_back(vertex[index]);
-
-			polygon.back().i = polygon.size() - 1;
 		}
-
-		removeConsecutiveEqualItems(indices);
 
 		if( indices.size() < 3 )
-		{
-			if( initialCountOfIndices > 3 )
-				count.polygons.second++;
-
 			return nullptr;
-		}
 				
 		const std::vector<Triangle> triangles = triangulate(polygon);
 
 		if( triangles.empty() )
-			return lineStart;
-
-		if( initialCountOfIndices > 3 )
-			count.polygons.second++;
+			return nullptr;
 
 		line = lineStart;
 
@@ -567,13 +576,13 @@ namespace obj
 			*line++ = 'f';
 
 			*line++ = ' ';
-			for( const auto& c : vertexText[triangle.p0.i] ) *line++ = c;
+			for( const auto& c : index_word[triangle.p0.i] ) *line++ = c;
 
 			*line++ = ' ';
-			for( const auto& c : vertexText[triangle.p1.i] ) *line++ = c;
+			for( const auto& c : index_word[triangle.p1.i] ) *line++ = c;
 
 			*line++ = ' ';
-			for( const auto& c : vertexText[triangle.p2.i] ) *line++ = c;
+			for( const auto& c : index_word[triangle.p2.i] ) *line++ = c;
 
 			*line++ = '\n';
 
@@ -581,6 +590,8 @@ namespace obj
 		}
 
 		*(--line) = '\0';
+
+		std::string text2(lineStart);
 
 		return lineStart;
 	}
@@ -637,9 +648,14 @@ namespace obj
 
 	inline TurnDirection turn(const Point& p, const Point& u, const Point& n, const Point& q)
 	{
-		const auto dot = obj::dot(cross(q - p, u), n);
+		const auto v = cross(q - p, u);
 
-		return dot > 0.0f ? TurnDirection::Right : (dot < 0.0f ? TurnDirection::Left : TurnDirection::NoTurn);
+		const auto dot = obj::dot(v, n);
+
+		if( dot > +0.001 ) return TurnDirection::Right;
+		if( dot < -0.001 ) return TurnDirection::Left;
+
+		return TurnDirection::NoTurn;
 	}
 
 	inline float triangleAreaSquared(const Point& a, const Point& b, const Point& c)
@@ -768,16 +784,6 @@ namespace obj
 		getBarycentricTriangleCoordinates(a, b, c, p, alpha, beta, gamma);
 
 		return (alpha >= -epsilon) && (beta >= -epsilon) && (gamma >= -epsilon);
-	}
-
-	inline void removeConsecutiveEqualItems(std::vector<int>& list)
-	{
-		const auto unique = std::unique(list.begin(), list.end(), [](const int a, const int b) { return a == b; });
-
-		list.erase(unique, list.end());
-
-		while( !list.empty() && list.front() == list.back() )
-			list.erase(list.begin());
 	}
 
 	inline void removeConsecutiveEqualItems(std::vector<Point>& list)
