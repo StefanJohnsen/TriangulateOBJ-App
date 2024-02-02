@@ -26,6 +26,7 @@
 
 namespace obj
 {
+	static constexpr float zero    = 1e-12f;
 	static constexpr float epsilon = 1e-6f;
 
 	struct Count
@@ -591,8 +592,6 @@ namespace obj
 
 		*(--line) = '\0';
 
-		std::string text2(lineStart);
-
 		return lineStart;
 	}
 
@@ -631,7 +630,7 @@ namespace obj
 		return {u.y * v.z - u.z * v.y , u.z * v.x - u.x * v.z , u.x * v.y - u.y * v.x};
 	}
 
-	inline float dot(const Point& u, const Point& v)
+	inline double dot(const Point& u, const Point& v)
 	{
 		return u.x * v.x + u.y * v.y + u.z * v.z;
 	}
@@ -754,10 +753,14 @@ namespace obj
 			polygon = {polygon.rbegin() , polygon.rend()};
 	}
 
-	inline void getBarycentricTriangleCoordinates(const Point& a, const Point& b, const Point& c, const Point& p, float& alpha, float& beta, float& gamma)
+	inline bool pointInsideOrEdgeTriangle(const Point& a, const Point& b, const Point& c, const Point& p, bool& edge)
 	{
-		alpha = beta = gamma = -2 * epsilon;
+		static double zero = std::numeric_limits<double>::epsilon();
 
+		// Initialize edge to false
+		edge = false;
+
+		// Vectors from point p to vertices of the triangle
 		const auto v0 = c - a;
 		const auto v1 = b - a;
 		const auto v2 = p - a;
@@ -768,22 +771,34 @@ namespace obj
 		const auto dot11 = dot(v1, v1);
 		const auto dot12 = dot(v1, v2);
 
-		const float denom = dot00 * dot11 - dot01 * dot01;
+		// Check for degenerate triangle
+		const auto denom = dot00 * dot11 - dot01 * dot01;
 
-		if( fabs(denom) < epsilon ) return;
-				
-		alpha = (dot11 * dot02 - dot01 * dot12) / denom;
-		beta  = (dot00 * dot12 - dot01 * dot02) / denom;
-		gamma = 1.0f - alpha - beta;
+		if( std::abs(denom) < zero )
+		{
+			// The triangle is degenerate (i.e., has no area)
+			return false;
+		}
+
+		// Compute barycentric coordinates
+		const auto invDenom = 1.0 / denom;
+
+		const auto u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+		const auto v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+
+		// Check for edge condition
+		if( std::abs(u) < zero || std::abs(v) < zero || std::abs(u + v - 1) < zero )
+			edge = true;
+
+		// Check if point is inside the triangle (including edges)
+		return (u >= 0.0) && (v >= 0.0) && (u + v < 1.0);
 	}
 
 	inline bool pointInsideOrEdgeTriangle(const Point& a, const Point& b, const Point& c, const Point& p)
 	{
-		float alpha, beta, gamma;
+		bool edge(false);
 
-		getBarycentricTriangleCoordinates(a, b, c, p, alpha, beta, gamma);
-
-		return (alpha >= -epsilon) && (beta >= -epsilon) && (gamma >= -epsilon);
+		return pointInsideOrEdgeTriangle(a, b, c, p, edge);
 	}
 
 	inline void removeConsecutiveEqualItems(std::vector<Point>& list)
@@ -807,6 +822,81 @@ namespace obj
 
 	//-------------------------------------------------------------------------------------------------------
 
+	inline void WriteDebug(const std::vector<Point>& polygon)
+	{
+		//const std::string file = "C:\\Temp\\debug.obj";
+
+		const std::string file = "C:\\FalconCoding\\OBJFiles\\test.obj";
+
+		FILE* target = fopen(file.c_str(), "w");
+
+		for( const auto& point : polygon )
+		{
+			fprintf(target, "v");
+			fprintf(target, " %.4f", point.x);
+			fprintf(target, " %.4f", point.y);
+			fprintf(target, " %.4f", point.z);
+			fprintf(target, "\n");
+		}
+
+		for( size_t i = 0; i < polygon.size(); i++ )
+		{
+			if( i == polygon.size() - 1 )
+				fprintf(target, "l %zu 1\n", i + 1);
+			else
+				fprintf(target, "l %zu %zu\n", i + 1, i + 2);
+		}
+
+		//fprintf(target, "f");
+		//for( const auto& point : polygon )
+		//	fprintf(target, " %zu", index++);
+		//fprintf(target, "\n");
+
+		fclose(target);
+	}
+
+	inline void WriteDebug(const Triangle& triangle, const Point& p)
+	{
+		//const std::string file = "C:\\Temp\\debug.obj";
+
+		const std::string file = "C:\\FalconCoding\\OBJFiles\\test.obj";
+
+		FILE* target = fopen(file.c_str(), "w");
+
+		fprintf(target, "v");
+		fprintf(target, " %.4f", triangle.p0.x);
+		fprintf(target, " %.4f", triangle.p0.y);
+		fprintf(target, " %.4f", triangle.p0.z);
+		fprintf(target, "\n");
+		fprintf(target, "v");
+		fprintf(target, " %.4f", triangle.p1.x);
+		fprintf(target, " %.4f", triangle.p1.y);
+		fprintf(target, " %.4f", triangle.p1.z);
+		fprintf(target, "\n");
+		fprintf(target, "v");
+		fprintf(target, " %.4f", triangle.p2.x);
+		fprintf(target, " %.4f", triangle.p2.y);
+		fprintf(target, " %.4f", triangle.p2.z);
+		fprintf(target, "\n");
+		fprintf(target, "v");
+		fprintf(target, " %.4f", p.x);
+		fprintf(target, " %.4f", p.y);
+		fprintf(target, " %.4f", p.z);
+		fprintf(target, "\n");
+
+		fprintf(target, "l 1 2\n");
+		fprintf(target, "l 2 3\n");
+		fprintf(target, "l 3 1\n");
+
+		fprintf(target, "p 1\n");
+		fprintf(target, "p 2\n");
+		fprintf(target, "p 3\n");
+		fprintf(target, "p 4\n");
+
+		fclose(target);
+	}
+
+
 	inline bool isEar(const int index, const std::vector<Point>& polygon, const Point& normal)
 	{
 		const auto n = polygon.size();
@@ -823,6 +913,8 @@ namespace obj
 		const Point& item = polygon[itemIndex];
 		const Point& next = polygon[nextIndex];
 
+		Triangle triangle(prev, item, next);
+
 		const auto u = normalize(item - prev);
 
 		if( turn(prev, u, normal, next) != TurnDirection::Right )
@@ -833,6 +925,13 @@ namespace obj
 			if( i == prevIndex ) continue;
 			if( i == itemIndex ) continue;
 			if( i == nextIndex ) continue;
+
+			if( i == 25 )
+			{
+				i = 25;
+
+				//WriteDebug(triangle, polygon[i]);
+			}
 
 			if( pointInsideOrEdgeTriangle(prev, item, next, polygon[i]) )
 				return false;
@@ -875,6 +974,34 @@ namespace obj
 		return maxIndex;
 	}
 
+	inline int getOverlappingEar(const std::vector<Point>& polygon, const Point& normal)
+	{
+		const auto n = static_cast<int>(polygon.size());
+
+		if( n == 3 ) return 0;
+
+		if( n == 0 ) return -1;
+
+		for( int index = 0; index < n; index++ )
+		{
+			const Point& prev = polygon[(index - 1 + n) % n];
+			const Point& item = polygon[index % n];
+			const Point& next = polygon[(index + 1) % n];
+
+			const auto u = normalize(item - prev);
+
+			if( turn(prev, u, normal, next) != TurnDirection::NoTurn )
+				continue;
+
+			const auto v = normalize(next - item);
+
+			if( dot(u, v) < 0.0 ) //Opposite direction -> ear
+				return index;
+		}
+
+		return -1;
+	}
+
 	//-------------------------------------------------------------------------------------------------------
 
 	inline std::vector<Triangle> fanTriangulation(std::vector<Point>& polygon)
@@ -895,11 +1022,22 @@ namespace obj
 
 		auto n = polygon.size();
 
+		int test(0);
+
 		while( !polygon.empty() )
 		{
-			const int index = getBiggestEar(polygon, normal);
+			test++;
 
-			if( index == -1 ) return {};
+			//			if( test == 18 )
+			//				WriteDebug(polygon);
+
+			int index = getBiggestEar(polygon, normal);
+
+			if( index == -1 )
+				index = getOverlappingEar(polygon, normal);
+
+			if( index == -1 )
+				return {};
 
 			n = polygon.size();
 
@@ -910,6 +1048,8 @@ namespace obj
 			triangles.emplace_back(prev, item, next);
 
 			polygon.erase(polygon.begin() + index);
+
+			//WriteDebug(polygon);
 
 			if( polygon.size() < 3 ) break;
 		}
