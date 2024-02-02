@@ -26,7 +26,6 @@
 
 namespace obj
 {
-	static constexpr float zero    = 1e-12f;
 	static constexpr float epsilon = 1e-6f;
 
 	struct Count
@@ -794,13 +793,6 @@ namespace obj
 		return (u >= 0.0) && (v >= 0.0) && (u + v < 1.0);
 	}
 
-	inline bool pointInsideOrEdgeTriangle(const Point& a, const Point& b, const Point& c, const Point& p)
-	{
-		bool edge(false);
-
-		return pointInsideOrEdgeTriangle(a, b, c, p, edge);
-	}
-
 	inline void removeConsecutiveEqualItems(std::vector<Point>& list)
 	{
 		const auto n = list.size();
@@ -822,81 +814,6 @@ namespace obj
 
 	//-------------------------------------------------------------------------------------------------------
 
-	inline void WriteDebug(const std::vector<Point>& polygon)
-	{
-		//const std::string file = "C:\\Temp\\debug.obj";
-
-		const std::string file = "C:\\FalconCoding\\OBJFiles\\test.obj";
-
-		FILE* target = fopen(file.c_str(), "w");
-
-		for( const auto& point : polygon )
-		{
-			fprintf(target, "v");
-			fprintf(target, " %.4f", point.x);
-			fprintf(target, " %.4f", point.y);
-			fprintf(target, " %.4f", point.z);
-			fprintf(target, "\n");
-		}
-
-		for( size_t i = 0; i < polygon.size(); i++ )
-		{
-			if( i == polygon.size() - 1 )
-				fprintf(target, "l %zu 1\n", i + 1);
-			else
-				fprintf(target, "l %zu %zu\n", i + 1, i + 2);
-		}
-
-		//fprintf(target, "f");
-		//for( const auto& point : polygon )
-		//	fprintf(target, " %zu", index++);
-		//fprintf(target, "\n");
-
-		fclose(target);
-	}
-
-	inline void WriteDebug(const Triangle& triangle, const Point& p)
-	{
-		//const std::string file = "C:\\Temp\\debug.obj";
-
-		const std::string file = "C:\\FalconCoding\\OBJFiles\\test.obj";
-
-		FILE* target = fopen(file.c_str(), "w");
-
-		fprintf(target, "v");
-		fprintf(target, " %.4f", triangle.p0.x);
-		fprintf(target, " %.4f", triangle.p0.y);
-		fprintf(target, " %.4f", triangle.p0.z);
-		fprintf(target, "\n");
-		fprintf(target, "v");
-		fprintf(target, " %.4f", triangle.p1.x);
-		fprintf(target, " %.4f", triangle.p1.y);
-		fprintf(target, " %.4f", triangle.p1.z);
-		fprintf(target, "\n");
-		fprintf(target, "v");
-		fprintf(target, " %.4f", triangle.p2.x);
-		fprintf(target, " %.4f", triangle.p2.y);
-		fprintf(target, " %.4f", triangle.p2.z);
-		fprintf(target, "\n");
-		fprintf(target, "v");
-		fprintf(target, " %.4f", p.x);
-		fprintf(target, " %.4f", p.y);
-		fprintf(target, " %.4f", p.z);
-		fprintf(target, "\n");
-
-		fprintf(target, "l 1 2\n");
-		fprintf(target, "l 2 3\n");
-		fprintf(target, "l 3 1\n");
-
-		fprintf(target, "p 1\n");
-		fprintf(target, "p 2\n");
-		fprintf(target, "p 3\n");
-		fprintf(target, "p 4\n");
-
-		fclose(target);
-	}
-
-
 	inline bool isEar(const int index, const std::vector<Point>& polygon, const Point& normal)
 	{
 		const auto n = polygon.size();
@@ -905,6 +822,8 @@ namespace obj
 
 		if( n == 3 ) return true;
 
+		bool edge(false);
+
 		const auto prevIndex = (index - 1 + n) % n;
 		const auto itemIndex = index % n;
 		const auto nextIndex = (index + 1) % n;
@@ -912,8 +831,6 @@ namespace obj
 		const Point& prev = polygon[prevIndex];
 		const Point& item = polygon[itemIndex];
 		const Point& next = polygon[nextIndex];
-
-		Triangle triangle(prev, item, next);
 
 		const auto u = normalize(item - prev);
 
@@ -926,14 +843,7 @@ namespace obj
 			if( i == itemIndex ) continue;
 			if( i == nextIndex ) continue;
 
-			if( i == 25 )
-			{
-				i = 25;
-
-				//WriteDebug(triangle, polygon[i]);
-			}
-
-			if( pointInsideOrEdgeTriangle(prev, item, next, polygon[i]) )
+			if( pointInsideOrEdgeTriangle(prev, item, next, polygon[i], edge) )
 				return false;
 		}
 
@@ -1020,17 +930,8 @@ namespace obj
 
 		makeClockwiseOrientation(polygon, normal);
 
-		auto n = polygon.size();
-
-		int test(0);
-
 		while( !polygon.empty() )
 		{
-			test++;
-
-			//			if( test == 18 )
-			//				WriteDebug(polygon);
-
 			int index = getBiggestEar(polygon, normal);
 
 			if( index == -1 )
@@ -1039,7 +940,7 @@ namespace obj
 			if( index == -1 )
 				return {};
 
-			n = polygon.size();
+			const auto n = polygon.size();
 
 			const Point& prev = polygon[(index - 1 + n) % n];
 			const Point& item = polygon[index % n];
@@ -1048,8 +949,6 @@ namespace obj
 			triangles.emplace_back(prev, item, next);
 
 			polygon.erase(polygon.begin() + index);
-
-			//WriteDebug(polygon);
 
 			if( polygon.size() < 3 ) break;
 		}
