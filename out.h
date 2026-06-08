@@ -18,6 +18,7 @@
 #include <chrono>
 #include <sstream>
 #include <iostream>
+#include <sys/stat.h>
 
 #include "cmd.h"
 #include "div.h"

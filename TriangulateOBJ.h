@@ -19,6 +19,7 @@
 
 #include <string>
 #include <cmath>
+#include <cfloat>
 #include <map>
 #include <vector>
 #include <iostream>
